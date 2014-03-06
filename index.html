@@ -1,0 +1,314 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title></title>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript">
+        //下面2个方法实现了Ajax+WebService的无刷新 HandleStateChange为回调函数  执行完HelloWorld返回的值将赋给HandleStateChange的参数reusltText  这里有点难理解  习惯就好
+        $(document).ready(function () {
+
+            $.ajax({
+                type: "POST",  //访问WebService使用post方式请求
+                contentType: "application/json;utf-8",   //WebService会返回json类型
+                url: "Service.asmx/isLogin", //调用WebService的地址和方法名称组合
+                data: "{}",  //这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                dataType: "json",
+                success: function (result) {
+                    //$("#result").html(result.d);
+                    if (result.d != 0) {
+                        alert(result.d + "已经登录");
+                        $("#qqstatus").html("QQ:"+result.d + "已经登录成功！");
+                        $("#sendMessage").show();
+                        getFriendList();
+                    }
+
+                }
+            });
+
+            $("#button1").click(function () {
+                try {
+                    $.ajax({
+                        type: "POST",  //访问WebService使用post方式请求
+                        contentType: "application/json;utf-8",   //WebService会返回json类型
+                        url: "Service.asmx/HelloWorld", //调用WebService的地址和方法名称组合
+                        data: "{userName:'Jodie'}",  //这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                        dataType: "json",
+                        success: function (result) {
+                            //$("#result").html(result.d);
+                            alert(result.d);
+                            $("#qqstatus").html("QQ" + result.d + "已经登录成功！");
+                            $("#sendMessage").show();
+                            getFriendList();
+                        }
+                    })
+                }
+                catch (ex) {
+                    alert(ex);
+                }
+            });
+
+            $("#QQnumber").blur(function () {
+                if ($("#QQnumber").val() != "") {
+                    $.ajax({
+                        type: "POST",  //访问WebService使用post方式请求
+                        contentType: "application/json;utf-8",   //WebService会返回json类型
+                        url: "Service.asmx/VCode", //调用WebService的地址和方法名称组合
+                        data: "{LoginQQ:'" + $("#QQnumber").val() + "'}",  //这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                        dataType: "json",
+                        success: function (result) {
+                            //$("#result").html(result.d);
+                            if (result.d != "") {
+                                if (result.d == "不是qq帐号") alert(result.d);
+                                else {
+                                    if (result.d.length > 4) {//需要输入验证码
+                                        $("tr[name='verifyCodetr']").show();
+
+
+                                        $("#vcodeImg").attr("src", "Service.asmx/getVCode2?LoginQQ=" + $("#QQnumber").val());
+
+                                    } else {
+
+                                        //$("#verifyCodetr").show();
+                                        //$("#vcodeImg").attr("src", "Service.asmx/getVCode2?LoginQQ=" + $("#QQnumber").val());
+                                        $("input[name='verifyCode']").val(result.d);
+
+                                    }
+                                }
+                            }
+                        }
+                    })
+                }
+            });
+
+            $("#submitButton").click(function () {
+                $.ajax({
+                    type: "POST",  //访问WebService使用post方式请求
+                    contentType: "application/json;utf-8",   //WebService会返回json类型
+                    url: "Service.asmx/login", //调用WebService的地址和方法名称组合
+                    data: jsontostr($('#loginForm').serializeJson()), // 这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                    dataType: "json",
+                    success: function (result) {
+                        //$("#result").html(result.d);
+                        if (result.d.retcode == 0) {
+                            alert("登录成功！");
+                            $("#qqstatus").html("QQ:" + $("#QQnumber").val() + "已经登录成功！");
+                            $("#sendMessage").show();
+                            getFriendList();
+                        } else {
+                            alert(result.d.result);
+                        }
+                    }
+                })
+
+            });
+
+
+            $("#ButtonSend").click(function () {
+                $.ajax({
+                    type: "POST",  //访问WebService使用post方式请求
+                    contentType: "application/json;utf-8",   //WebService会返回json类型
+                    url: "Service.asmx/sendMsgToAllMemberByGroup", //调用WebService的地址和方法名称组合
+                    data: jsontostr($('#FormSend').serializeJson()), // 这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                    dataType: "json",
+                    success: function (result) {
+                        //$("#result").html(result.d);
+                        alert(result.d.result);
+
+                    }
+                });
+                alert("正在发送。。。请等待。。。成功与否自己看！");
+
+            });
+
+
+            $("#vcodeImg").click(function () {
+
+                if ($("#QQnumber").val() != "") {
+                    $("#vcodeImg").attr("src", "");
+                    //$("#vcodeImg").src = "data:image/jpeg;Service.asmx/getVCode2?LoginQQ=" + $("#QQnumber").val()+"t="+Math.random();
+                    $("#vcodeImg").attr("src", "Service.asmx/getVCode2?LoginQQ=" + $("#QQnumber").val() + "&t=" + Math.random());
+                 
+                 var url="Service.asmx/getVCode2?LoginQQ=" + $("#QQnumber").val() + "&t=" + Math.random();
+                    $("#change").append("<a href='"+url+"'>change</a>");     
+                }
+            });
+
+
+            $.fn.serializeJson = function () {
+                var serializeObj = {};
+                var array = this.serializeArray();
+                var str = this.serialize();
+                $(array).each(function () {
+                    if (serializeObj[this.name]) {
+                        if ($.isArray(serializeObj[this.name])) {
+                            serializeObj[this.name].push(this.value);
+                        } else {
+                            serializeObj[this.name] = [serializeObj[this.name], this.value];
+                        }
+                    } else {
+                        serializeObj[this.name] = this.value;
+                    }
+                });
+                return serializeObj;
+            };
+
+            jsontostr = function (o) {
+                var arr = [];
+                var fmt = function (s) {
+                    if (typeof s == 'object' && s != null) return json2str(s);
+                    return /^(string|number)$/.test(typeof s) ? "'" + s + "'" : s;
+                }
+                for (var i in o) arr.push("'" + i + "':" + fmt(o[i]));
+                return '{' + arr.join(',') + '}';
+
+            };
+
+
+
+
+        });
+
+        function getFriendList() {
+            $.ajax({
+                type: "POST",  //访问WebService使用post方式请求
+                contentType: "application/json;utf-8",   //WebService会返回json类型
+                url: "Service.asmx/GetFriedsList", //调用WebService的地址和方法名称组合
+                data: {}, // 你的formid,  //这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                dataType: "json",
+                success: function (result) {
+                    $("#result").html(result.d);
+                }
+            });
+
+            $.ajax({
+                type: "POST",  //访问WebService使用post方式请求
+                contentType: "application/json;utf-8",   //WebService会返回json类型
+                url: "Service.asmx/GetGroupList", //调用WebService的地址和方法名称组合
+                data: {}, // 你的formid,  //这里是要传递的参数，格式为data:"{paraName:paraValue}"
+                dataType: "json",
+                success: function (result) {
+                    $("#result").append("群列表："+result.d);
+                }
+            });
+        }
+
+        
+
+
+ 
+    </script>
+</head>
+<body>
+
+ <center><h3>QQ小助手</h3></center>
+    <form id="loginForm" target="_blank" action="Service.asmx/login" method="POST">
+    <table cellspacing="0" cellpadding="4" frame="box" rules="none" style="border-collapse: collapse;
+        margin: auto;">
+        <tbody>
+            <tr>
+                <td class="frmText" style="color: #000000; font-weight: normal;">
+                    qq号:
+                </td>
+                <td>
+                    <input class="frmInput" type="text"  id="QQnumber" name="QQnumber" keyev="true"
+                        style="padding-right: 0px; background-attachment: scroll; cursor: auto; background-position: 100% 50%;
+                        background-repeat: no-repeat no-repeat;">
+                </td>
+            </tr>
+            
+            <tr>
+                <td class="frmText" style="color: #000000; font-weight: normal;">
+                    密码:
+                </td>
+                <td>
+                    <input class="frmInput" type="password"  name="password" keyev="true" style="padding-right: 0px;
+                        background-attachment: scroll; cursor: auto; background-position: 100% 50%; background-repeat: no-repeat no-repeat;">
+                </td>
+            </tr>
+
+
+             <tr name="verifyCodetr" style="display: none;">
+                <td class="frmText" style="color: #000000; font-weight: normal;">
+                    验证码:
+                </td>
+                <td>
+                    <input class="frmInput" type="text" size="10" name="verifyCode">
+                </td>
+            </tr>
+            <tr name="verifyCodetr" style="display: none--;">
+                <td>
+                </td>
+                <td>
+                    <img id="vcodeImg" height="53px" width="130px" />
+                </td>
+            </tr>
+
+            <tr>
+                <td class="frmText" style="color: #000000; font-weight: normal;">
+                    状态:
+                </td>
+                <td>
+                    <select name="status">
+                        <option value="在线">在线</option>
+                        <option value="隐身">隐身</option>
+                        <option value="忙碌">忙碌</option>
+                        <option value="Q我吧">Q我吧</option>
+                        <option value="离开">离开</option>
+                        <option value="请勿打扰">请勿打扰</option>
+       
+                    </select>
+
+                </td>
+            </tr>
+            <tr>
+                <td>
+                </td>
+                <td>
+                    <input type="button" id="submitButton" value="登录" class="button">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    </form>
+    
+    <center><h4 id="qqstatus"></h4></center>
+     <center><h3>给群里好友群发消息啦！</h3></center>
+    <div id="sendMessage" style="margin-top: 30px; display: none;">
+      
+        <form id="FormSend" target="_blank" method="POST">
+        <table cellspacing="0" cellpadding="4" frame="box" rules="none" style="border-collapse: collapse;
+            margin: auto;">
+            <tbody>
+                <tr>
+                    <td class="frmText" style="color: #000000; font-weight: normal;">
+                        群号或者群昵称:
+                    </td>
+                    <td>
+                        <input class="frmInput" type="text"  id="Text1" name="qqGroupNumber" keyev="true"
+                            style="padding-right: 0px; background-attachment: scroll; cursor: auto; background-position: 100% 50%;
+                            background-repeat: no-repeat no-repeat;">
+                    </td>
+                </tr>
+                <tr>
+                    <td class="frmText" style="color: #000000; font-weight: normal;">
+                        消息:
+                    </td>
+                    <td>
+                        <textarea name="content" rows="10" style="margin-left: 2px; margin-right: 2px; width: 315px;"></textarea>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                    </td>
+                    <td>
+                        <input type="button" id="ButtonSend" value="发送" class="button">
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        </form>
+    </div>
+    <div id="result">
+    </div>
+</body>
+</html>

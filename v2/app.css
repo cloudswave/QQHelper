@@ -1,0 +1,64 @@
+/*
+ * This file is provided for application-specific style rules.
+ *
+ * By default, Maqetta includes this CSS file within HTML pages
+ * authored in Maqetta.
+ *
+ * This file is typically used to override style rules found in
+ * theme CSS files. For example, suppose the theme CSS file has:
+ *
+ * .claro .dijitButton .dijitButtonNode {
+ *		padding:2px 4px 4px 4px;
+ * }
+ *
+ * But for your application suppose you want to tighten the padding
+ * for buttons. Then, you might include the following style rule
+ * in this file (assuming that you accept Maqetta's default where
+ * id "myapp" is present on the BODY element, and assuming
+ * that you are using the "claro" theme):
+ *
+ * #myapp.claro .dijitButton .dijitButtonNode {
+ *		padding:1px 3px 3px 3px;
+ * }
+ *
+ * Because of CSS precedence rules (see [1]), the above style rule
+ * (which begins with #myapp.claro) will "win the cascade" versus 
+ * the style rule from the theme CSS file due to the use of the
+ * ID select (#myapp), which has higher specificity than the class
+ * selectors used throughout the Claro theme.
+ *
+ * [1] http://www.w3.org/TR/CSS21/cascade.html#cascade
+ */
+html,body {
+	height: 100%;
+	width: 100%;
+}
+
+.forms div.section-title {
+	font-size: 18px;
+	font-weight: bold;
+	margin: 1em .7em .3em;
+}
+.forms input[type="radio"], .forms input[type="checkbox"] {
+	width: 30px;
+	height: 30px;
+}
+.forms .mblRadioButtonChecked::after, .forms .mblRadioButton:checked::after,
+.forms .mblCheckBoxChecked::after, .forms .mblCheckBox:checked:after {
+	width: 0.45em;
+	height: 1em;
+	top: 2px;
+	left: 9px;
+	border-width: 0.2em;
+}
+.forms input[data-dojo-type="dojox/mobile/TextInput"],
+.forms input[data-dojo-type="dojox/mobile/TextBox"] {
+	width: 40%;
+}
+
+#scrollablePane .mblRoundRectList, .mblRoundRect {
+	margin: 7px 9px 7px 9px;
+}
+#scrollablePane .mblListItem {
+	color: white;
+}

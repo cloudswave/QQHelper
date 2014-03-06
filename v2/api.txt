@@ -1,0 +1,2 @@
+    [WebMethod(Description = "给多个好友(,隔开)群发消息", EnableSession = true)]
+    public void sendMsgToFriends(string uinStr, string content)

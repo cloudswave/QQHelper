@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,
+   minimum-scale=1,user-scalable=no"/>
+
+<title>QQHelper</title>
+<!--   <link href="http://ajax.googleapis.com/ajax/libs/dojo/1.9.2/dojox/mobile/themes/iphone/iphone.css" rel="stylesheet"></link>-->
+<script src="http://ajax.googleapis.com/ajax/libs/dojo/1.9.2/dojo/dojo.js"
+        data-dojo-config="async:true, parseOnLoad:true,isDebug:true"></script>
+<script type="text/javascript">
+require([
+    "dijit/dijit",
+    "dojo/parser",
+    "dojox/mobile",
+    "dojox/mobile/deviceTheme",
+    "dojo/hash",
+    "dojox/mobile/TextBox",
+    "dojox/mobile/Button",
+    "dijit/form/DataList",
+    "dojox/mobile/ScrollableView",
+    "dojox/mobile/IconContainer",
+    "dojox/mobile/IconItem"
+]);
+
+
+
+var webservice_url = "../Service.asmx";
+var friendsListStore=null;
+var groupsListStore=null;
+
+require(["dojo/data/ItemFileWriteStore"],function(ItemFileWriteStore){
+    groupsListStore=new ItemFileWriteStore({data:{"items": [ ]}});
+    friendsListStore=new ItemFileWriteStore({data:{"items": [ ]}});
+});
+
+require(["dojox/mobile/RoundRectDataList","dojo/data/ItemFileWriteStore","dojo/ready", "dojo/_base/connect", "dijit/registry", "dojo/dom-form", "dojo/request/xhr", "dojo/json", "dojo/on",
+    "dojo/dom", "dojo/dom-attr", "dojo/dom-style", "dojo/mouse", "dojo/domReady!"],
+        function (RoundRectDataList,ItemFileWriteStore,ready, connect, registry, domForm, xhr, JSON, on, dom, dom_attr, domStyle, mouse) {
+
+            ready(function () {
+
+                var loadIndicator = document.getElementById("loadIndicator");
+                if (loadIndicator!=null){
+                    loadIndicator.style.display="none";
+                }
+                var readerContainer = document.getElementById("reader-container");
+                if (readerContainer!=null){
+                    readerContainer.style.display="block";
+                }
+
+
+
+
+                show_progress_indicator_notime('indicator_tips','progress_indicator_container2','正在检测您是否已经登陆...');
+                xhr.post(webservice_url + "/isLogin", {
+                    handleAs: "json",
+                    headers: { "Content-Type": "application/json" }, //或者contentType: "application/json",
+                    data: {}
+
+                }).then(function (data) {
+                            hide_progress_indicator('indicator_tips');
+                            if (data.d != 0) {
+
+                                show_progress_indicator('dlg_progress', 'progress_indicator_container','QQ:'+data.d+'您已经登录');
+                                //alert(data.d + "已经登录");
+                                registry.byId("View_Login").performTransition("View_main", 1, "slide");
+                            }
+                        });
+
+
+                //获取好友列表
+                var jsonData=null;
+                var jsonDataG=null;
+                on(dom.byId("qqFriendsLi"), "click", function () {
+                    //LoadQQFriendList
+                    if(jsonData==null){
+                        show_progress_indicator_notime('indicator_tips','progress_indicator_container2','正在获取好友信息，请等待...');
+                        require([
+                            "dojo/data/ItemFileReadStore",
+                            "dojox/mobile/RoundRectDataList"
+                        ], function (ItemFileReadStore, RoundRectDataList) {
+
+
+                            xhr.post(webservice_url + "/GetFriendsInfoList", {
+                                headers: { "Content-Type": "application/json" }, //或者contentType: "application/json",
+                                data:JSON.stringify( {filter:"0"}), // ，格式为data:"{paraName:paraValue}"
+                                handleAs: "json"
+                            }).then(function (data) {
+                                        jsonData = data.d;
+                                        jsonData = eval(jsonData);
+
+
+                                        for(var i = 0; i < jsonData.length; i++){
+                                            console.log(jsonData[i].name);
+
+                                            friendsListStore.newItem({id:jsonData[i].uin,label:jsonData[i].qqNumber+"("+jsonData[i].nick+")"});
+                                            //groupsListStore.newItem({id:jsonData[i].uin,label:jsonData[i].qqNumber+"("+jsonData[i].nick+")"});
+                                            //storeData.items.push({label:jsonData[i].name});
+                                        }
+                                        hide_progress_indicator('indicator_tips');
+                                    });
+                        });
+                    }
+
+                });
+
+                //qq群列表
+                on(dom.byId("qqGroupsLi"), "click", function () {
+                    if(jsonDataG==null){
+
+                       show_progress_indicator_notime('indicator_tips','progress_indicator_container2','正在获取群信息，请等待...');
+                        require([
+                            "dojo/data/ItemFileReadStore",
+                            "dojox/mobile/RoundRectDataList"
+                        ], function (ItemFileReadStore, RoundRectDataList) {
+                            xhr.post(webservice_url + "/GetGroupList", {
+                                headers: { "Content-Type": "application/json" }, //或者contentType: "application/json",
+                                //data:JSON.stringify( {filter:"0"}), // ，格式为data:"{paraName:paraValue}"
+                                handleAs: "json"
+                            }).then(function (data) {
+                                        jsonDataG = data.d;
+                                        jsonDataG=JSON.parse(jsonDataG);
+                                        jsonDataG=jsonDataG.result.gnamelist;
+                                        for(var i = 0; i < jsonDataG.length; i++){
+                                            //groupsListStore.newItem({id:jsonData[i].uin,label:jsonData[i].qqNumber+"("+jsonData[i].nick+")"});
+                                            groupsListStore.newItem({id:jsonDataG[i].code+"",label:jsonDataG[i].name+""});
+                                        }
+                                        hide_progress_indicator('indicator_tips');
+                                    });
+                        });
+                    }
+
+                });
+
+                setUinStr=function(flag){
+                    var querystr="#friendsListUl  .mblListItemChecked";
+                    switch(flag){
+                        case "friends":
+                            querystr="#friendsListUl  .mblListItemChecked";
+                            break;
+                        case "groups":
+                            querystr="#groupsListUl  .mblListItemChecked";
+                            break;
+                        default :
+                            querystr="#friendsListUl  .mblListItemChecked";
+                            break;
+
+                    }
+                    var uinStr="";
+                    var gidStr="";
+                    require(["dojo/query"], function(query){
+                        query(querystr).forEach(function(node,index,array){
+                            uinStr+=node.id+",";
+                        });
+                        console.log(uinStr);
+                    });
+
+                    return uinStr;
+                }
+
+                sendMsg=function(flag,uinStr){
+                    var method="/sendMsgToFriends";
+                    switch(flag){
+                        case "friends":
+                            method="/sendMsgToFriends";
+                            break;
+                        case "groups":
+                            method="/sendMsgToGroups";
+                            break;
+                        default :
+                            method="/sendMsgToFriends";
+                            break;
+
+                    }
+
+
+                    console.log(JSON.stringify( {uinStr:uinStr,content:dom.byId("message").value}));
+                    xhr.post(webservice_url +method, {
+                        headers: { "Content-Type": "application/json" }, //或者contentType: "application/json",
+                        data:JSON.stringify( {uinStr:uinStr,content:dom.byId("message").value}), // ，格式为data:"{paraName:paraValue}"
+                        handleAs: "json"
+                    }).then(function (data) {
+                                var dataJson = data.d;
+                                show_progress_indicator('dlg_progress', 'progress_indicator_container',dataJson.result );
+
+                            });
+                }
+
+
+                on(dom.byId("select_all"),"click",function(){
+                    require(["dojo/query"], function(query){
+                        query("#friendsListUl  li").forEach(function(node,index,array){
+                            node.className="mblListItem mblListItemChecked";
+                        });
+                    });
+                });
+
+                on(dom.byId("select_all_q"),"click",function(){
+                    require(["dojo/query"], function(query){
+                        query("#groupsListUl  li").forEach(function(node,index,array){
+                            node.className="mblListItem mblListItemChecked";
+                        });
+                    });
+                });
+
+
+                on(dom.byId("un_select_all"),"click",function(){
+                    require(["dojo/query"], function(query){
+                        query("#friendsListUl  li").forEach(function(node,index,array){
+                            node.className="mblListItem mblListItemUnchecked";
+                        });
+                    });
+                });
+
+                on(dom.byId("un_select_all_q"),"click",function(){
+                    require(["dojo/query"], function(query){
+                        query("#groupsListUl  li").forEach(function(node,index,array){
+                            node.className="mblListItem mblListItemUnchecked";
+                        });
+                    });
+                });
+
+                on(dom.byId("select_ok"),"click",function(){
+                    sendMsg("friends", setUinStr("friends"));
+                });
+
+                on(dom.byId("select_ok_q"),"click",function(){
+                    sendMsg("groups", setUinStr("groups"));
+                });
+
+
+                on(dom.byId("sendMsg"),"click",function(){
+                    sendMsg("friends", setUinStr("friends"));
+                    sendMsg("groups", setUinStr("groups"));
+                });
+
+
+
+            });
+
+
+
+
+
+
+            //验证码
+            on(dom.byId("QQnumber"), "blur", function () {
+                if (dom.byId("QQnumber").value != "") {
+                    xhr.post(webservice_url + "/VCode", {
+                        handleAs: "json",
+                        headers: { "Content-Type": "application/json" }, //或者contentType: "application/json",
+                        data: JSON.stringify({ LoginQQ: dom.byId("QQnumber").value})
+
+                    }).then(function (data) {
+                                if (data.d != "") {
+                                    if (data.d == "不是qq帐号") alert(data.d);
+                                    else {
+                                        if (data.d.length > 4) {//需要输入验证码
+                                            domStyle.set('vcodeArea', "display", "");
+                                            dom_attr.set("vcodeImg", "src", webservice_url + "/getVCode2?LoginQQ=" + dom.byId("QQnumber").value);
+
+
+                                        } else {
+                                            dom.byId("verifyCode").value = data.d;
+
+                                        }
+                                    }
+                                }
+                            });
+                }
+
+            });
+
+            on(dom.byId("vcodeImg"),"click",function(){
+                dom_attr.set("vcodeImg", "src", webservice_url + "/getVCode2?LoginQQ=" + dom.byId("QQnumber").value);
+            });
+
+
+            //登录
+            on(dom.byId("submitBtn"), "click", function () {
+
+
+                xhr.post(webservice_url + "/login", {
+                    handleAs: "json",
+                    headers: { "Content-Type": "application/json" }, //或者contentType: "application/json",
+                    data: domForm.toJson("loginForm")
+
+                }).then(function (data) {
+                            if (data.d.retcode == 0) {
+                                show_progress_indicator('dlg_progress', 'progress_indicator_container','登录成功！');
+                                //alert("登录成功！");
+                                registry.byId("View_Login").performTransition("View_main", 1, "slide");
+
+                            } else {
+                                //alert(data.d.result);
+                                show("dlg_message",data.d.result);
+                                dom_attr.set("vcodeImg", "src", webservice_url + "/getVCode2?LoginQQ=" + dom.byId("QQnumber").value);
+                            }
+
+                        });
+            });
+
+
+        });
+
+
+require(["dojo/dom",
+    "dijit/registry",
+    "dojox/mobile/ProgressIndicator",
+    "dojox/mobile/parser", "dojox/mobile",
+    "dojox/mobile/compat",
+    "dojox/mobile/SimpleDialog",
+    "dojox/mobile/TextBox",
+    "dojox/mobile/Button",
+    "dojox/mobile/Slider"
+], function (dom, registry, ProgressIndicator) {
+
+
+    show = function (dlg, content) {
+        dom.byId("infoDialog").innerHTML = content;
+        registry.byId(dlg).show();
+    };
+
+    hide = function (dlg) {
+        registry.byId(dlg).hide();
+    };
+
+    var prog;
+
+    show_progress_indicator = function (dlg, cont,content) {
+        dom.byId("dlg_progressContent").innerHTML=content;
+        show(dlg);
+        var container = dom.byId(cont);
+        prog = ProgressIndicator.getInstance();
+        container.appendChild(prog.domNode);
+        prog.start();
+        setTimeout(function () {
+            hide_progress_indicator(dlg);
+        }, 2000);
+    };
+
+    show_progress_indicator_notime = function (dlg, cont,tips) {
+        dom.byId("dlg_progressTips").innerHTML=tips;
+        show(dlg);
+        var container = dom.byId(cont);
+        prog = ProgressIndicator.getInstance();
+        container.appendChild(prog.domNode);
+        prog.start();
+    };
+
+    hide_progress_indicator = function (dlg) {
+        prog.stop();
+        hide(dlg);
+    };
+
+});
+
+/*    dojo.addOnLoad(function(){
+ alert( dom.byId("QQnumber"));
+ console.log("I also run, but second. ");
+ });*/
+
+
+</script>
+
+<style>@import "app.css";
+</style>
+
+</head>
+<body>
+<div id="loadIndicator"  style="position:absolute;width:100%;height:100%;z-index:999;background-color: black;text-align: center;vertical-align: middle;opacity:0.50;filter:alpha(opacity=50)">
+    <table border="0" style="width:100%;height:100%;">
+        <tr valign="middle">
+            <td align="center"><div class="indicator" style="color: white">Loading..</div> </td>
+        </tr>
+    </table>
+</div>
+
+
+<div id="reader-container" style="display: none">
+<div data-dojo-type="dojox/mobile/View" id="View_Login" style="height: 100%;" class="views" selected="true">
+    <h1 label="QQ小助手" class="mblHeading" data-dojo-type="dojox/mobile/Heading"></h1>
+
+    <form id="loginForm" class="forms">
+        <div class="section-title">
+            登录
+        </div>
+
+        <div data-dojo-type="dojox/mobile/RoundRect" class="mblRoundRect" id="dojox_mobile_RoundRect_1" style="">
+            <div data-dojo-type="dojox/mobile/FormLayout" class="mblFormLayout mblFormLayoutAuto" style="">
+
+                <div>
+                    <label>
+                        QQ号*</label>
+                    <fieldset>
+                        <input type="text" data-dojo-type="dojox.mobile.TextBox" name="QQnumber" class="mblTextBox"
+                               tabindex="0" id="QQnumber" widgetid="dojox_mobile_TextBox_0" value="" style="">
+
+                        </input>
+                    </fieldset>
+                </div>
+                <div>
+                    <label>
+                        密码*</label>
+                    <fieldset>
+                        <input type="password" name="password" data-dojo-type="dojox.mobile.TextBox" class="mblTextBox"
+                               tabindex="0" id="dojox_mobile_TextBox_1" widgetid="dojox_mobile_TextBox_1" value="">
+
+                        </input>
+                    </fieldset>
+                </div>
+
+
+                <div id="vcodeArea" style="display: none">
+                    <label>
+                        验证码*</label>
+                    <fieldset>
+                        <input type="text" data-dojo-type="dojox.mobile.TextBox" name="verifyCode" class="mblTextBox"
+                               tabindex="0" id="verifyCode" widgetid="dojox_mobile_TextBox_2" value="" style="">
+
+                        </input>
+                    </fieldset>
+                    <img id="vcodeImg" alt="点击更换"/></div>
+
+
+                <div>
+                    <label>
+                        状态*</label>
+                    <fieldset>
+                        <select name="status" class="mblTextBox">
+                            <option value="在线">
+                                在线
+                            </option>
+                            <option value="隐身">
+                                隐身
+                            </option>
+                            <option value="忙碌">
+                                忙碌
+                            </option>
+                            <option value="Q我吧">
+                                Q我吧
+                            </option>
+                            <option value="离开">
+                                离开
+                            </option>
+                            <option value="请勿打扰">
+                                请勿打扰
+                            </option>
+                        </select>
+                    </fieldset>
+                </div>
+
+            </div>
+        </div>
+
+    </form>
+    <div style="text-align: center;">
+        <button dojotype="dojox.mobile.Button" id="submitBtn" style="-webkit-user-select: none;"
+                class="mblButton greyBtn baseBtn normalBtn">
+            登录
+        </button>
+    </div>
+</div>
+
+
+<div data-dojo-type="dojox/mobile/View" id="View_main" style="height: 100%;">
+    <h1 label="QQ小助手" data-dojo-type="dojox/mobile/Heading" back="切换帐号" moveTo="View_Login"></h1>
+    <ul data-dojo-type="dojox/mobile/IconContainer" iconBase="images/default.png">
+
+        <li label="消息助手" data-dojo-type="dojox/mobile/IconItem" transition="flip" icon="images/message.png"
+            moveTo="ScrollableView_Message" lazy="true"></li>
+        <li label="通讯录助手" data-dojo-type="dojox/mobile/IconItem" transition="zoomIn" icon="images/contact.png"
+            moveTo="View_Address"></li>
+    </ul>
+</div>
+
+
+
+<div data-dojo-type="dojox/mobile/ScrollableView" id="ScrollableView_Message" keepScrollPos="false" scrollBar="true">
+    <h1 label="消息助手" data-dojo-type="dojox/mobile/Heading" back="首页" moveTo="View_main">
+        <div label="发送" id="sendMsg"  data-dojo-type="dojox/mobile/ToolBarButton" toogle="false" style="float: right;"></div>
+    </h1>
+    <form style="height: 127px;">
+        <fieldset style="border: 2px groove threedface; margin: 2px; padding: 0.75em;">
+            <legend>
+                消息
+            </legend>
+            <textarea id="message" style="width: 100%; height: 68px;"></textarea>
+        </fieldset>
+    </form>
+    <fieldset style="border: 2px groove threedface; margin: 2px; padding: 0.75em;">
+        <legend>
+            批量勾选
+        </legend>
+        <ul data-dojo-type="dojox/mobile/RoundRectList">
+            <li id="qqFriendsLi" data-dojo-type="dojox/mobile/ListItem" moveTo="ScrollableView_Friends">
+                <label class="mblListItemLabel">
+                    QQ好友</label>
+            </li>
+            <li id="qqGroupsLi" data-dojo-type="dojox/mobile/ListItem" moveTo="ScrollableView_Groups">
+                <label class="mblListItemLabel">
+                    群</label>
+            </li>
+        </ul>
+    </fieldset>
+</div>
+
+
+<div data-dojo-type="dojox/mobile/View" id="ScrollableView_Friends" keepScrollPos="false" scrollBar="true">
+    <h1 id="h1_friendsList" label="好友列表" data-dojo-type="dojox/mobile/Heading" back="返回" fixed="top" moveTo="ScrollableView_Message">
+
+        <div label="发送" id="select_ok" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;">
+        </div>
+        <div label="全不选" id="un_select_all" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;">
+        </div>
+        <div label="全选" id="select_all" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;">
+        </div>
+
+    </h1>
+
+
+    <ul data-dojo-type="dojox/mobile/RoundRectDataList" data-dojo-mixins="dojox/mobile/FilteredListMixin"
+        data-dojo-props="placeHolder: 'Search',select:'multiple'"
+        id="friendsListUl"
+        store="friendsListStore"
+       >
+
+    </ul>
+
+
+</div>
+
+
+<div data-dojo-type="dojox/mobile/View" id="ScrollableView_Groups" keepScrollPos="false" scrollBar="true">
+    <h1 id="h1_groupsList" label="群列表" data-dojo-type="dojox/mobile/Heading" back="返回" fixed="top" moveTo="ScrollableView_Message">
+
+        <div label="发送" id="select_ok_q" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;">
+        </div>
+        <div label="全不选" id="un_select_all_q" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;">
+        </div>
+        <div label="全选" id="select_all_q" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;">
+        </div>
+
+    </h1>
+
+
+    <ul data-dojo-type="dojox/mobile/RoundRectDataList" data-dojo-mixins="dojox/mobile/FilteredListMixin"
+        data-dojo-props="placeHolder: 'Search',select:'multiple'"
+        id="groupsListUl"
+        store="groupsListStore"
+        >
+
+
+
+    </ul>
+</div>
+
+
+<div data-dojo-type="dojox/mobile/View" id="View_Address" keepScrollPos="true" style="height: 100%;">
+    <h1 label="通讯录助手" data-dojo-type="dojox/mobile/Heading" back="首页" moveTo="View_main">
+        <div label="导入" data-dojo-type="dojox/mobile/ToolBarButton" style="float: right;"></div>
+    </h1>
+    <ul data-dojo-type="dojox/mobile/EdgeToEdgeList"></ul>
+    <div label="批量勾选" data-dojo-type="dojox/mobile/RoundRectCategory"></div>
+    <ul data-dojo-type="dojox/mobile/RoundRectList">
+        <li data-dojo-type="dojox/mobile/ListItem" moveTo="ScrollableView_Friends" rightIcon="mblDomButtonArrow">
+            <label class="mblListItemLabel">
+                QQ好友</label>
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" moveTo="ScrollableView_Groups">
+            <label class="mblListItemLabel">
+                QQ群</label>
+        </li>
+    </ul>
+</div>
+
+
+<!--dialog-->
+<div id="dialogs" data-dojo-type="dojox.mobile.View">
+
+    <div id="dlg_message" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div class="mblSimpleDialogTitle">提示</div>
+        <div id="infoDialog" class="mblSimpleDialogText"></div>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton" style="width:100px;"
+                onclick="hide('dlg_message')">确定
+        </button>
+    </div>
+
+    <div id="dlg_confirm" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div class="mblSimpleDialogTitle">确认</div>
+        <div id="alertDialog" class="mblSimpleDialogText">Do you have an umbrella?</div>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton" onclick="hide('dlg_confirm')">No
+        </button>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton mblBlueButton"
+                onclick="hide('dlg_confirm')">Yes
+        </button>
+    </div>
+
+    <div id="dlg_login" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div class="mblSimpleDialogTitle">Mobile Community</div>
+        <div class="mblSimpleDialogText">Enter your ID and Password</div>
+        <input data-dojo-type="dojox.mobile.TextBox" class="mblSimpleDialogInput" type="text"
+               props='selectOnClick:true, placeHolder:"ID"' style="margin-bottom: 0;">
+        <input data-dojo-type="dojox.mobile.TextBox" class="mblSimpleDialogInput" type="password"
+               props='selectOnClick:true, placeHolder:"Password"' style="margin-top: 0;">
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton2l" onclick="hide('dlg_login')">
+            Cancel
+        </button>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton2r mblBlueButton"
+                onclick="hide('dlg_login')">OK
+        </button>
+    </div>
+
+    <div id="dlg_progress" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div id="dlg_progressContent" class="mblSimpleDialogText">已经登陆成功.</div>
+        <div class="mblSimpleDialogText" id="progress_indicator_container"></div>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton mblRedButton"
+                onclick="hide_progress_indicator('dlg_progress')">取消
+        </button>
+    </div>
+
+
+    <div id="indicator_tips" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div id="dlg_progressTips"  class="mblSimpleDialogText">请等待....</div>
+        <div class="mblSimpleDialogText" id="progress_indicator_container2"></div>
+    </div>
+
+
+    <div id="dlg_volume" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div class="mblSimpleDialogTitle">Volume</div>
+        <div class="mblSimpleDialogText">Ringtone</div>
+        <input data-dojo-type="dojox.mobile.Slider" value="0" min="0" max="20" step="0.1" type="range"
+               style="width:90%;">
+
+        <div class="mblSimpleDialogText">Media</div>
+        <input data-dojo-type="dojox.mobile.Slider" value="0" min="0" max="20" step="0.1" type="range"
+               style="width:90%;">
+
+        <div class="mblSimpleDialogText">Alarm</div>
+        <input data-dojo-type="dojox.mobile.Slider" value="0" min="0" max="20" step="0.1" type="range"
+               style="width:90%;">
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton2l" onclick="hide('dlg_volume')">OK
+        </button>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton2r" onclick="hide('dlg_volume')">
+            Cancel
+        </button>
+    </div>
+
+    <div id="dlg_select" data-dojo-type="dojox.mobile.SimpleDialog">
+        <div class="mblSimpleDialogTitle">Animation</div>
+        <ul data-dojo-type="dojox.mobile.EdgeToEdgeList" props='select:"single"'>
+            <li data-dojo-type="dojox.mobile.ListItem"
+                props='checkClass:"mblDomButtonSilverCircleGreenButton", uncheckClass:"mblDomButtonSilverCircleGrayButton"'>
+                No animations
+            </li>
+            <li data-dojo-type="dojox.mobile.ListItem"
+                props='checkClass:"mblDomButtonSilverCircleGreenButton", uncheckClass:"mblDomButtonSilverCircleGrayButton"'>
+                Some animations
+            </li>
+            <li data-dojo-type="dojox.mobile.ListItem"
+                props='checkClass:"mblDomButtonSilverCircleGreenButton", uncheckClass:"mblDomButtonSilverCircleGrayButton", checked:true'>
+                All animations
+            </li>
+        </ul>
+        <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton" style="width:60%;"
+                onclick="hide('dlg_select')">Cancel
+        </button>
+    </div>
+
+
+</div>
+</div>
+</body>
+</html>
