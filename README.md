@@ -1,1 +1,3 @@
-#QQHelper
+#QQHelper QQ小助手
+* 功能
+  * 消息助手（给群和好友群发消息） 
