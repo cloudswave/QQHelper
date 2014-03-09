@@ -1,1 +1,3 @@
-使用vs2012导入网站
+*使用vs2012导入网站
+*QQHelper / Bin / yiwoSDK.dll 为qq接口
+*QQHelper / Bin / yiwoSDK.chm 为接口帮助文档
